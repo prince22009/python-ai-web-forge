@@ -1,7 +1,11 @@
 export type Message = {
   role: "user" | "assistant";
-  content: string;
+  content: string | MessageContent[];
 };
+
+export type MessageContent = 
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -26,14 +30,8 @@ export async function streamChat({
   });
 
   if (!resp.ok || !resp.body) {
-    if (resp.status === 429) {
-      onError("Rate limit exceeded. Please wait a moment.");
-      return;
-    }
-    if (resp.status === 402) {
-      onError("Usage limit reached. Please add credits.");
-      return;
-    }
+    if (resp.status === 429) { onError("Rate limit exceeded. Please wait a moment."); return; }
+    if (resp.status === 402) { onError("Usage limit reached. Please add credits."); return; }
     onError("Failed to connect to AI. Please try again.");
     return;
   }
@@ -57,10 +55,7 @@ export async function streamChat({
       if (!line.startsWith("data: ")) continue;
 
       const json = line.slice(6).trim();
-      if (json === "[DONE]") {
-        done = true;
-        break;
-      }
+      if (json === "[DONE]") { done = true; break; }
 
       try {
         const parsed = JSON.parse(json);
@@ -73,7 +68,6 @@ export async function streamChat({
     }
   }
 
-  // Flush remaining
   if (buffer.trim()) {
     for (let raw of buffer.split("\n")) {
       if (!raw) continue;
@@ -90,4 +84,9 @@ export async function streamChat({
   }
 
   onDone();
+}
+
+export function getTextContent(msg: Message): string {
+  if (typeof msg.content === "string") return msg.content;
+  return msg.content.filter(c => c.type === "text").map(c => (c as any).text).join("");
 }
