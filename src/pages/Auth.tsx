@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
@@ -12,20 +12,27 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) navigate("/");
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) navigate("/");
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back!");
-        navigate("/");
       } else {
         const { error } = await supabase.auth.signUp({
-          email,
-          password,
+          email, password,
           options: { emailRedirectTo: window.location.origin },
         });
         if (error) throw error;
@@ -59,11 +66,8 @@ const Auth = () => {
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
+                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com" required
                 className="w-full rounded-xl border border-border bg-secondary/50 py-3 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:neon-glow transition-all"
               />
             </div>
@@ -74,39 +78,26 @@ const Auth = () => {
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={6}
+                type={showPassword ? "text" : "password"} value={password}
+                onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
+                required minLength={6}
                 className="w-full rounded-xl border border-border bg-secondary/50 py-3 pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:neon-glow transition-all"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
+              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all neon-glow"
-          >
+          <button type="submit" disabled={loading}
+            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all neon-glow">
             {loading ? "Please wait..." : isLogin ? "Sign In" : "Sign Up"}
           </button>
 
           <p className="text-center text-sm text-muted-foreground">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline"
-            >
+            <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline">
               {isLogin ? "Sign Up" : "Sign In"}
             </button>
           </p>
